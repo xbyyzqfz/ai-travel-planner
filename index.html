@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI旅行规划师 - 智能旅行助手</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 引入Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <!-- 引入Mapbox地图API -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <!-- 引入Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Tailwind配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        accent: '#f59e0b',
+                        dark: '#1e293b',
+                        light: '#f8fafc'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- 自定义工具类 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto { content-visibility: auto; }
+            .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .backdrop-blur-sm { backdrop-filter: blur(4px); }
+            .transition-all-300 { transition: all 300ms ease-in-out; }
+        }
+    </style>
+    
+    <style>
+        /* 全局样式 */
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* 动画效果 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        
+        /* 地图容器样式 */
+        #map {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-light text-dark">
+    <!-- 导航栏 -->
+    <nav id="navbar" class="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-sm shadow-md z-50 transition-all-300">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-paper-plane text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-primary">AI旅行规划师</h1>
+            </div>
+            
+            <div class="hidden md:flex items-center space-x-8">
+                <a href="#home" class="nav-link font-medium hover:text-primary transition-all-300">首页</a>
+                <a href="#planner" class="nav-link font-medium hover:text-primary transition-all-300">行程规划</a>
+                <a href="#budget" class="nav-link font-medium hover:text-primary transition-all-300">预算管理</a>
+                <a href="#map-section" class="nav-link font-medium hover:text-primary transition-all-300">地图</a>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <button id="login-btn" class="hidden px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all-300">
+                    登录
+                </button>
+                <button id="logout-btn" class="hidden px-4 py-2 bg-gray-200 text-dark rounded-lg hover:bg-gray-300 transition-all-300">
+                    退出
+                </button>
+                <button id="menu-toggle" class="md:hidden text-dark text-xl">
+                    <i class="fa fa-bars"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 移动端菜单 -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t">
+            <div class="container mx-auto px-4 py-2 flex flex-col space-y-3">
+                <a href="#home" class="mobile-nav-link py-2 font-medium hover:text-primary transition-all-300">首页</a>
+                <a href="#planner" class="mobile-nav-link py-2 font-medium hover:text-primary transition-all-300">行程规划</a>
+                <a href="#budget" class="mobile-nav-link py-2 font-medium hover:text-primary transition-all-300">预算管理</a>
+                <a href="#map-section" class="mobile-nav-link py-2 font-medium hover:text-primary transition-all-300">地图</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <main class="pt-20 pb-12">
+        <!-- 英雄区域 -->
+        <section id="home" class="min-h-[80vh] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 py-16">
+            <div class="container mx-auto px-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                    <div class="animate-fade-in">
+                        <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-bold leading-tight mb-6 text-dark">
+                            智能规划您的<br><span class="text-primary">完美旅行</span>
+                        </h1>
+                        <p class="text-lg text-gray-600 mb-8">
+                            AI驱动的旅行规划助手，帮您快速生成个性化行程，管理预算，轻松探索世界。
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <a href="#planner" class="px-8 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-all-300 text-center">
+                                开始规划
+                            </a>
+                            <a href="#features" class="px-8 py-3 bg-white text-primary border border-primary font-medium rounded-lg hover:bg-primary/5 transition-all-300 text-center">
+                                了解更多
+                            </a>
+                        </div>
+                    </div>
+                    <div class="relative hidden md:block">
+                        <img src="https://picsum.photos/seed/travel1/600/500" alt="旅行规划" class="rounded-lg shadow-2xl animate-fade-in" style="animation-delay: 0.2s;">
+                        <div class="absolute -bottom-6 -left-6 bg-white p-4 rounded-lg shadow-lg animate-fade-in" style="animation-delay: 0.4s;">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                    <i class="fa fa-calendar-check-o text-secondary text-xl"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium">智能行程</p>
+                                    <p class="text-sm text-gray-500">一键生成最优路线</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="absolute -top-6 -right-6 bg-white p-4 rounded-lg shadow-lg animate-fade-in" style="animation-delay: 0.6s;">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <i class="fa fa-map-marker text-primary text-xl"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium">实时地图</p>
+                                    <p class="text-sm text-gray-500">探索目的地周边</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 特性区域 -->
+        <section id="features" class="py-16 bg-white">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-16">
+                    <h2 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold mb-4">智能旅行助手的核心功能</h2>
+                    <p class="text-gray-600 max-w-3xl mx-auto">我们提供全方位的旅行规划服务，从需求输入到行程生成，再到预算管理，一站式解决您的旅行问题</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- 特性卡片1 -->
+                    <div class="bg-light rounded-xl p-8 shadow-md hover:shadow-lg transition-all-300">
+                        <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                            <i class="fa fa-microphone text-primary text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">语音文字双输入</h3>
+                        <p class="text-gray-600">支持通过语音或文字轻松输入您的旅行需求，智能识别您的偏好和约束条件。</p>
+                    </div>
+                    
+                    <!-- 特性卡片2 -->
+                    <div class="bg-light rounded-xl p-8 shadow-md hover:shadow-lg transition-all-300">
+                        <div class="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-6">
+                            <i class="fa fa-route text-secondary text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">智能行程规划</h3>
+                        <p class="text-gray-600">AI算法根据您的需求，为您生成最优的旅行路线和日程安排，包括景点推荐和时间分配。</p>
+                    </div>
+                    
+                    <!-- 特性卡片3 -->
+                    <div class="bg-light rounded-xl p-8 shadow-md hover:shadow-lg transition-all-300">
+                        <div class="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mb-6">
+                            <i class="fa fa-money text-accent text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">费用预算管理</h3>
+                        <p class="text-gray-600">智能估算各项费用，创建预算计划，帮助您合理分配资金，避免超支。</p>
+                    </div>
+                    
+                    <!-- 特性卡片4 -->
+                    <div class="bg-light rounded-xl p-8 shadow-md hover:shadow-lg transition-all-300">
+                        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-6">
+                            <i class="fa fa-user-circle text-purple-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">用户账户管理</h3>
+                        <p class="text-gray-600">注册登录后可保存您的行程规划和偏好设置，随时查看和修改历史行程。</p>
+                    </div>
+                    
+                    <!-- 特性卡片5 -->
+                    <div class="bg-light rounded-xl p-8 shadow-md hover:shadow-lg transition-all-300">
+                        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
+                            <i class="fa fa-map text-red-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">地图集成</h3>
+                        <p class="text-gray-600">集成地图API，直观展示您的行程路线，查看景点分布和周边设施。</p>
+                    </div>
+                    
+                    <!-- 特性卡片6 -->
+                    <div class="bg-light rounded-xl p-8 shadow-md hover:shadow-lg transition-all-300">
+                        <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-6">
+                            <i class="fa fa-cloud text-indigo-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">云存储同步</h3>
+                        <p class="text-gray-600">通过Supabase云服务，您的所有数据安全存储并可在多设备间同步访问。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 行程规划区域 -->
+        <section id="planner" class="py-16 bg-gray-50">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-12">
+                    <h2 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold mb-4">智能行程规划</h2>
+                    <p class="text-gray-600 max-w-3xl mx-auto">告诉我们您的旅行需求，AI将为您生成个性化的完美行程</p>
+                </div>
+                
+                <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-6 md:p-8">
+                        <!-- 需求输入区域 -->
+                        <div class="mb-8">
+                            <h3 class="text-xl font-bold mb-4">输入您的旅行需求</h3>
+                            <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                                <div class="relative">
+                                    <textarea id="travel-request" rows="4" class="w-full p-4 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="例如：我想去上海旅游3天，喜欢美食和购物，预算3000元..."></textarea>
+                                    <button id="voice-input-btn" class="absolute right-3 bottom-3 text-primary hover:text-primary/80 transition-all-300">
+                                        <i class="fa fa-microphone text-xl"></i>
+                                    </button>
+                                </div>
+                                <div id="voice-status" class="hidden mt-2 text-sm text-gray-500">
+                                    <i class="fa fa-spinner fa-spin mr-2"></i>正在聆听...
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">目的地</label>
+                                    <input type="text" id="destination" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="您想去哪里？">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">旅行天数</label>
+                                    <input type="number" id="days" min="1" max="30" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="预计几天？">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">旅行风格</label>
+                                    <select id="travel-style" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300">
+                                        <option value="">请选择</option>
+                                        <option value="美食">美食探索</option>
+                                        <option value="文化">文化历史</option>
+                                        <option value="自然">自然风光</option>
+                                        <option value="购物">购物血拼</option>
+                                        <option value="休闲">休闲度假</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">预算范围</label>
+                                    <input type="number" id="budget" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="预算金额(元)">
+                                </div>
+                            </div>
+                            
+                            <button id="generate-plan-btn" class="w-full md:w-auto px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-all-300">
+                                生成行程计划
+                            </button>
+                        </div>
+                        
+                        <!-- 行程结果区域 -->
+                        <div id="plan-result" class="hidden">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="text-xl font-bold">您的智能行程</h3>
+                                <div class="flex space-x-2">
+                                    <button id="save-plan-btn" class="text-primary hover:text-primary/80 transition-all-300">
+                                        <i class="fa fa-save mr-1"></i> 保存
+                                    </button>
+                                    <button id="print-plan-btn" class="text-gray-600 hover:text-gray-800 transition-all-300">
+                                        <i class="fa fa-print mr-1"></i> 打印
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="itinerary-content" class="space-y-6">
+                                <!-- 行程内容将由JS动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 预算管理区域 -->
+        <section id="budget" class="py-16 bg-white">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-12">
+                    <h2 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold mb-4">费用预算管理</h2>
+                    <p class="text-gray-600 max-w-3xl mx-auto">智能估算和管理您的旅行预算，让您的旅行更加从容</p>
+                </div>
+                
+                <div class="max-w-5xl mx-auto">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- 预算概览 -->
+                        <div class="lg:col-span-1 space-y-6">
+                            <div class="bg-light rounded-xl p-6 shadow-md">
+                                <h3 class="text-lg font-bold mb-4">预算概览</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <div class="flex justify-between text-sm mb-1">
+                                            <span class="text-gray-600">总预算</span>
+                                            <span class="font-medium" id="total-budget">¥0</span>
+                                        </div>
+                                        <div class="flex justify-between text-sm mb-1">
+                                            <span class="text-gray-600">已分配</span>
+                                            <span class="font-medium" id="allocated-amount">¥0</span>
+                                        </div>
+                                        <div class="flex justify-between text-sm mb-3">
+                                            <span class="text-gray-600">剩余预算</span>
+                                            <span class="font-medium" id="remaining-budget">¥0</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            <div id="budget-progress" class="bg-primary h-2 rounded-full" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-light rounded-xl p-6 shadow-md">
+                                <h3 class="text-lg font-bold mb-4">添加预算项</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">项目名称</label>
+                                        <input type="text" id="budget-item-name" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="例如：住宿、餐饮等">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">金额</label>
+                                        <input type="number" id="budget-item-amount" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="输入金额">
+                                    </div>
+                                    <button id="add-budget-item-btn" class="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all-300">
+                                        添加
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 预算详情和图表 -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-light rounded-xl p-6 shadow-md">
+                                <h3 class="text-lg font-bold mb-4">预算分布</h3>
+                                <div class="h-64">
+                                    <canvas id="budget-chart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-light rounded-xl p-6 shadow-md">
+                                <h3 class="text-lg font-bold mb-4">预算明细</h3>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full">
+                                        <thead>
+                                            <tr class="border-b">
+                                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600">项目</th>
+                                                <th class="py-3 px-4 text-right text-sm font-medium text-gray-600">金额</th>
+                                                <th class="py-3 px-4 text-center text-sm font-medium text-gray-600">操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="budget-items-list">
+                                            <!-- 预算项目将由JS动态生成 -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div id="no-budget-items" class="py-8 text-center text-gray-500">
+                                    暂无预算项目，请先添加
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 地图区域 -->
+        <section id="map-section" class="py-16 bg-gray-50">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-12">
+                    <h2 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold mb-4">地图探索</h2>
+                    <p class="text-gray-600 max-w-3xl mx-auto">通过地图直观查看您的行程路线和景点分布</p>
+                </div>
+                
+                <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-6 md:p-8">
+                        <div class="flex flex-col md:flex-row gap-6">
+                            <div class="md:w-1/3 space-y-6">
+                                <div>
+                                    <h3 class="text-lg font-bold mb-4">地图控制器</h3>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">搜索地点</label>
+                                            <div class="flex">
+                                                <input type="text" id="map-search" class="flex-1 p-3 border border-gray-200 rounded-l-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="输入地点名称">
+                                                <button id="map-search-btn" class="px-4 py-3 bg-primary text-white rounded-r-lg hover:bg-primary/90 transition-all-300">
+                                                    <i class="fa fa-search"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <button id="add-marker-btn" class="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-all-300 text-sm">
+                                                <i class="fa fa-plus mr-1"></i> 添加标记
+                                            </button>
+                                            <button id="clear-markers-btn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all-300 text-sm">
+                                                <i class="fa fa-trash mr-1"></i> 清除标记
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <h3 class="text-lg font-bold mb-4">路线规划</h3>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">起点</label>
+                                            <input type="text" id="route-start" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="出发地">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">终点</label>
+                                            <input type="text" id="route-end" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="目的地">
+                                        </div>
+                                        <button id="calculate-route-btn" class="w-full px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-all-300">
+                                            <i class="fa fa-route mr-1"></i> 规划路线
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="md:w-2/3">
+                                <div id="map" class="w-full h-[500px] rounded-lg border border-gray-200"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 用户评价区域 -->
+        <section class="py-16 bg-white">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-12">
+                    <h2 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold mb-4">用户评价</h2>
+                    <p class="text-gray-600 max-w-3xl mx-auto">看看其他旅行者如何使用我们的AI旅行规划师</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- 评价卡片1 -->
+                    <div class="bg-light rounded-xl p-8 shadow-md hover:shadow-lg transition-all-300">
+                        <div class="flex items-center mb-4">
+                            <img src="https://picsum.photos/seed/user1/100/100" alt="用户头像" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <h4 class="font-bold">张三</h4>
+                                <div class="text-accent">
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-gray-600">"AI生成的行程非常合理，帮我节省了很多规划时间。语音输入功能特别方便，让我可以边走边规划。"</p>
+                    </div>
+                    
+                    <!-- 评价卡片2 -->
+                    <div class="bg-light rounded-xl p-8 shadow-md hover:shadow-lg transition-all-300">
+                        <div class="flex items-center mb-4">
+                            <img src="https://picsum.photos/seed/user2/100/100" alt="用户头像" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <h4 class="font-bold">李四</h4>
+                                <div class="text-accent">
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star-half-o"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-gray-600">"预算管理功能帮我很好地控制了旅行支出，地图集成也让我能更直观地了解行程路线。非常推荐！"</p>
+                    </div>
+                    
+                    <!-- 评价卡片3 -->
+                    <div class="bg-light rounded-xl p-8 shadow-md hover:shadow-lg transition-all-300">
+                        <div class="flex items-center mb-4">
+                            <img src="https://picsum.photos/seed/user3/100/100" alt="用户头像" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <h4 class="font-bold">王五</h4>
+                                <div class="text-accent">
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star"></i>
+                                    <i class="fa fa-star-o"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-gray-600">"注册登录后可以保存我的所有行程，非常方便。AI推荐的景点也很符合我的喜好，下次旅行还会用！"</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <i class="fa fa-paper-plane text-primary text-2xl"></i>
+                        <h3 class="text-xl font-bold">AI旅行规划师</h3>
+                    </div>
+                    <p class="text-gray-400 mb-4">智能、高效、个性化的旅行规划助手，让每一次旅行都更加完美。</p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                            <i class="fa fa-weibo"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                            <i class="fa fa-wechat"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                            <i class="fa fa-qq"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-bold mb-4">快速链接</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#home" class="text-gray-400 hover:text-white transition-all-300">首页</a></li>
+                        <li><a href="#planner" class="text-gray-400 hover:text-white transition-all-300">行程规划</a></li>
+                        <li><a href="#budget" class="text-gray-400 hover:text-white transition-all-300">预算管理</a></li>
+                        <li><a href="#map-section" class="text-gray-400 hover:text-white transition-all-300">地图探索</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-bold mb-4">帮助中心</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition-all-300">使用指南</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition-all-300">常见问题</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition-all-300">联系我们</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition-all-300">隐私政策</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-bold mb-4">联系我们</h4>
+                    <ul class="space-y-2">
+                        <li class="flex items-center">
+                            <i class="fa fa-envelope-o text-gray-400 mr-2"></i>
+                            <span class="text-gray-400">contact@aitravel.com</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fa fa-phone text-gray-400 mr-2"></i>
+                            <span class="text-gray-400">400-123-4567</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fa fa-map-marker text-gray-400 mr-2"></i>
+                            <span class="text-gray-400">北京市海淀区科技园</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500">
+                <p>© 2023 AI旅行规划师. 保留所有权利.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 登录/注册模态框 -->
+    <div id="auth-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold" id="auth-modal-title">登录</h3>
+                    <button id="close-auth-modal" class="text-gray-400 hover:text-gray-600">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div id="login-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                        <input type="email" id="login-email" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="您的邮箱地址">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                        <input type="password" id="login-password" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="您的密码">
+                    </div>
+                    <button id="login-submit-btn" class="w-full px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-all-300">
+                        登录
+                    </button>
+                    <div class="text-center">
+                        <p class="text-gray-600">还没有账号？ <span id="switch-to-register" class="text-primary cursor-pointer hover:underline">立即注册</span></p>
+                    </div>
+                </div>
+                
+                <div id="register-form" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                        <input type="text" id="register-username" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="设置您的用户名">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                        <input type="email" id="register-email" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="您的邮箱地址">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                        <input type="password" id="register-password" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all-300" placeholder="设置您的密码">
+                    </div>
+                    <button id="register-submit-btn" class="w-full px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-all-300">
+                        注册
+                    </button>
+                    <div class="text-center">
+                        <p class="text-gray-600">已有账号？ <span id="switch-to-login" class="text-primary cursor-pointer hover:underline">返回登录</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知提示框 -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-dark text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center space-x-3">
+        <i id="toast-icon" class="fa fa-check-circle text-secondary"></i>
+        <span id="toast-message">操作成功</span>
+    </div>
+
+    <!-- JavaScript 文件 -->
+    <script src="app.js"></script>
+</body>
+</html>
