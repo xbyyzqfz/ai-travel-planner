@@ -1,0 +1,22 @@
+{
+  "name": "ai-travel-planner",
+  "version": "1.0.0",
+  "description": "AI旅行规划师 - 智能旅行助手",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server . -p 3000 -c-1",
+    "dev": "http-server . -p 3000 -c-1"
+  },
+  "dependencies": {
+    "http-server": "^14.1.1"
+  },
+  "keywords": [
+    "travel",
+    "ai",
+    "planner",
+    "trip",
+    "map"
+  ],
+  "author": "AI Travel Planner Team",
+  "license": "MIT"
+}

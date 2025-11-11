@@ -1,5 +1,17 @@
 # AI旅行规划师 - 智能旅行助手
 
+## API配置说明
+
+1. 在项目根目录创建 `config.js` 文件
+2. 添加以下配置：
+
+const CONFIG = {
+    SUPABASE_URL: '你的Supabase URL',
+    SUPABASE_KEY: '你的Supabase Key',
+    MAP_API_KEY: '你的地图API Key',
+    LLM_API_KEY: '你的大语言模型API Key'
+};
+
 一个基于Web的智能旅行规划系统，集成了语音输入、AI行程规划、费用预算管理、用户认证和地图可视化功能。
 
 ## 功能特点

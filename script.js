@@ -2,17 +2,31 @@
    AI旅行规划师 - 核心功能实现
    ====================================================== */
 
+// 从config.js加载API配置
+let CONFIG = {};
+
+// 尝试加载配置
+if (typeof window !== 'undefined' && window.CONFIG) {
+    CONFIG = window.CONFIG;
+} else if (typeof module !== 'undefined' && typeof require !== 'undefined') {
+    try {
+        CONFIG = require('./config.js');
+    } catch (e) {
+        console.warn('无法加载config.js，使用默认配置');
+    }
+}
+
 // 全局变量和配置
 const APP_CONFIG = {
-    // 这里需要填入真实的Supabase配置
-    SUPABASE_URL: 'https://your-project.supabase.co',
-    SUPABASE_KEY: 'your-supabase-anon-key',
+    // 从配置文件加载API密钥
+    SUPABASE_URL: CONFIG.SUPABASE_URL || 'https://your-project.supabase.co',
+    SUPABASE_KEY: CONFIG.SUPABASE_KEY || 'your-supabase-anon-key',
     
-    // 这里需要填入真实的地图API密钥
-    MAPBOX_ACCESS_TOKEN: 'your-mapbox-access-token',
+    // 地图API配置
+    MAPBOX_ACCESS_TOKEN: CONFIG.MAP_API_KEY || 'your-mapbox-access-token',
     
-    // 这里需要填入真实的大语言模型API密钥
-    LLM_API_KEY: 'your-llm-api-key',
+    // 大语言模型API配置
+    LLM_API_KEY: CONFIG.LLM_API_KEY || 'your-llm-api-key',
     LLM_API_URL: 'https://api.example.com/chat/completions',
     
     // 默认设置
